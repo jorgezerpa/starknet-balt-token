@@ -1,12 +1,13 @@
 #[starknet::contract]
-mod Balt {
+pub mod Balt {
     use starknet::ContractAddress;
     
     #[starknet::interface]
     pub trait IBalt<TContractState> {
-        // fn increase_balance(ref self: TContractState, amount: felt252);
-        // fn get_balance(self: @TContractState) -> felt252;
-        fn total_supply(self: @TContractState) -> u256;
+
+        fn get_metadata(self: @TContractState) -> (felt252, felt252, u8);
+
+        fn get_total_supply(self: @TContractState) -> u256;
         fn balance_of(self: @TContractState, address:ContractAddress)-> u256;
         
         fn transfer(ref self: TContractState, recipient:ContractAddress, amount:u256) -> bool;
@@ -18,15 +19,34 @@ mod Balt {
     
     #[storage]
     struct Storage {
+        total_supply: u256,
         name:felt252,
         symbol:felt252,
         decimals:u8,
     }
+
+    #[constructor]
+    fn constructor(ref self: ContractState) {
+        self.total_supply.write(20000000000000000000000000); // 20
+        self.decimals.write(18);
+        self.symbol.write('BLT');
+        self.name.write('Balt');
+    }
+    
     
     #[abi(embed_v0)]
     impl BaltImpl of IBalt<ContractState> {
-        fn total_supply(self:@ContractState) -> u256 {
-            5_u256
+
+        fn get_metadata(self:@ContractState) -> (felt252, felt252, u8) {
+            let name = self.name.read();
+            let symbol = self.symbol.read();
+            let decimals = self.decimals.read();
+
+            (name,symbol,decimals)
+        }
+
+        fn get_total_supply(self:@ContractState) -> u256 {
+            self.total_supply.read()
         }
         fn balance_of(self: @ContractState, address:ContractAddress) -> u256 {
             5_u256
