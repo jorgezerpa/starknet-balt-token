@@ -1,6 +1,8 @@
 #[starknet::contract]
 pub mod Balt {
-    use starknet::ContractAddress;
+    use starknet::storage::StoragePathEntry;
+    use starknet::{ContractAddress, get_caller_address};
+    use core::starknet::storage::{Map};
     
     #[starknet::interface]
     pub trait IBalt<TContractState> {
@@ -23,6 +25,7 @@ pub mod Balt {
         name:felt252,
         symbol:felt252,
         decimals:u8,
+        balances: Map::<ContractAddress, u256>,
     }
 
     #[constructor]
@@ -31,6 +34,10 @@ pub mod Balt {
         self.decimals.write(18);
         self.symbol.write('BLT');
         self.name.write('Balt');
+
+        let owner_address = get_caller_address();
+
+        self.balances.entry(owner_address).write(20000000000000000000000000);
     }
     
     
@@ -49,10 +56,23 @@ pub mod Balt {
             self.total_supply.read()
         }
         fn balance_of(self: @ContractState, address:ContractAddress) -> u256 {
-            5_u256
+            let balance = self.balances.read(address);
+            balance
         }
         
         fn transfer(ref self: ContractState, recipient:ContractAddress, amount:u256) -> bool {
+            let caller_address = get_caller_address();
+            let caller_balance = self.balances.read(caller_address);
+            println!("caller balance from contract {}", caller_balance);
+            if caller_balance < amount {
+                return false;
+            }
+            
+            let recipient_balance = self.balances.read(recipient);
+
+            self.balances.write(caller_address, caller_balance - amount);
+            self.balances.write(recipient, recipient_balance + amount);
+
             true
         }
         
