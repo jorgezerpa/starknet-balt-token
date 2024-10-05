@@ -19,6 +19,9 @@ fn OWNER() -> ContractAddress {
 fn OTHER_USER() -> ContractAddress {
     contract_address_const::<'USER'>()
 }
+fn OTHER_USER_TWO() -> ContractAddress {
+    contract_address_const::<'USER2'>()
+}
 
 
 fn deploy_contract(name:ByteArray) -> ContractAddress {
@@ -92,6 +95,50 @@ fn test_transfer(){
     assert_eq!(pre_transfer_owner_balance-amount_to_transfer, post_transfer_owner_balance, "Owner balance should decrease the transfered amount");
     assert_eq!(pre_transfer_other_user_balance+amount_to_transfer, post_transfer_other_user_balance, "Recipient balance should increase the transfered amount");
 }
+
+#[test]
+fn test_approve_and_allowance(){
+    let contract_address = deploy_contract("Balt");
+    let dispatcher = IBaltSafeDispatcher { contract_address };
+
+    let amount_to_approve = 10000000000000000000;
+    let address_to_approve = OTHER_USER();
+
+    dispatcher.approve(address_to_approve, amount_to_approve).unwrap();
+
+    start_cheat_caller_address(contract_address, address_to_approve);
+
+    let approved_amount = dispatcher.allowance(OWNER()).unwrap();
+
+    assert_eq!(approved_amount, amount_to_approve, "Approved amount should be 10 balts");
+}
+
+#[test]
+fn test_transfer_from(){
+    let contract_address = deploy_contract("Balt");
+    let dispatcher = IBaltSafeDispatcher { contract_address };
+
+    // approving amount
+    let amount_to_approve = 10000000000000000000;
+    let address_to_approve = OTHER_USER();
+    dispatcher.approve(address_to_approve, amount_to_approve).unwrap();
+    
+    let prev_owner_balance = dispatcher.balance_of(OWNER()).unwrap(); 
+    let prev_user2_balance = dispatcher.balance_of(OTHER_USER_TWO()).unwrap(); 
+    
+    start_cheat_caller_address(contract_address, address_to_approve);
+    let amount_to_transfer = 5000000000000000000;
+    dispatcher.transfer_from(OWNER(), OTHER_USER_TWO(), amount_to_transfer).unwrap();
+    
+    let post_owner_balance = dispatcher.balance_of(OWNER()).unwrap(); 
+    let post_user2_balance = dispatcher.balance_of(OTHER_USER_TWO()).unwrap();
+    println!("post user -> {}", post_user2_balance); 
+
+    assert_eq!(prev_owner_balance-amount_to_transfer, post_owner_balance, "Owner balance should decrease 5 Balts");
+    assert_eq!(prev_user2_balance+amount_to_transfer, post_user2_balance, "User2 balance should increase 5 Balts");
+}
+
+
 
 // later when implementing error handling 
 // #[test]

@@ -16,8 +16,9 @@ pub mod Balt {
         
         fn transfer_from(ref self: TContractState, owner:ContractAddress, recipient:ContractAddress, amount:u256) -> bool;
         fn approve(ref self: TContractState, spender:ContractAddress, amount:u256) -> bool;
-        fn allowance(ref self: TContractState, owner: ContractAddress, spender:ContractAddress) -> u256;
+        fn allowance(ref self: TContractState, owner: ContractAddress) -> u256;
     }
+
     
     #[storage]
     struct Storage {
@@ -26,6 +27,7 @@ pub mod Balt {
         symbol:felt252,
         decimals:u8,
         balances: Map::<ContractAddress, u256>,
+        allowances: Map::<ContractAddress, Map::<ContractAddress, u256>>, // owner -> allowed-quantity
     }
 
     #[constructor]
@@ -72,20 +74,39 @@ pub mod Balt {
 
             self.balances.write(caller_address, caller_balance - amount);
             self.balances.write(recipient, recipient_balance + amount);
-
+            
             true
         }
         
         fn transfer_from(ref self: ContractState, owner:ContractAddress, recipient:ContractAddress, amount:u256) -> bool {
-            true
-        }
+            let spender = get_caller_address();
+            let allowed_amount = self.allowances.entry(owner).read(spender);
+            if allowed_amount < amount {
+                return false;
+            }
+            
+            let owner_balance = self.balances.read(owner);
+            if owner_balance < amount {
+                return false;
+            }
 
-        fn approve(ref self: ContractState, spender:ContractAddress, amount:u256) -> bool {
+            let recipient_balance = self.balances.read(recipient);
+            
+            self.balances.write(owner, owner_balance - amount);
+            self.balances.write(recipient, recipient_balance + amount);
+
             true
         }
         
-        fn allowance(ref self: ContractState, owner: ContractAddress, spender:ContractAddress) -> u256 {
-            5_u256
+        fn approve(ref self: ContractState, spender:ContractAddress, amount:u256) -> bool {
+            let caller_address = get_caller_address();
+            self.allowances.entry(caller_address).write(spender, amount);
+            true
+        }
+        
+        fn allowance(ref self: ContractState, owner: ContractAddress) -> u256 {
+            let spender = get_caller_address();
+            self.allowances.entry(owner).read(spender)
         }
     }
 }
